@@ -54,14 +54,23 @@ class SegmentSerializer(serializers.ModelSerializer):
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set')
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
+    server_files = serializers.ListField(
+        child=serializers.CharField(max_length=1024, trim_whitespace=True)
+    )
+    remote_files = serializers.ListField(
+        child=serializers.CharField(max_length=1024)
+    )
+
 
     class Meta:
         model = Task
         fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
-            'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments')
+            'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments',
+            'server_files', 'client_files', 'remote_files')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'overlap', 'status', 'segment_size')
+        write_only_fields = ('server_files', 'client_files', 'remote_files')
 
     def create(self, validated_data):
         labels = validated_data.pop('labels')

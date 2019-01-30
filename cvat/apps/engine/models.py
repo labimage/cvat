@@ -6,6 +6,7 @@ from django.db import models
 from django.conf import settings
 
 from django.contrib.auth.models import User
+from django.core.files.storage import FileSystemStorage
 
 from io import StringIO
 from enum import Enum
@@ -14,6 +15,11 @@ import shlex
 import csv
 import re
 import os
+
+fs = FileSystemStorage()
+
+def upload_path_handler(instance, filename):
+    return os.path.join(instance.get_upload_dirname(), filename)
 
 class StatusChoice(Enum):
     ANNOTATION = 'annotation'
@@ -50,8 +56,14 @@ class Task(models.Model):
     segment_size = models.PositiveIntegerField()
     z_order = models.BooleanField(default=False)
     flipped = models.BooleanField(default=False)
+    # FIXME: remote source field
     source = SafeCharField(max_length=256, default="unknown")
     status = models.CharField(max_length=32, default=StatusChoice.ANNOTATION)
+    # FIXME: multiple files upload doesn't work
+    client_files = models.FileField(upload_to=upload_path_handler, storage=fs,
+        blank=True)
+    server_files = models.TextField(blank=True)
+    remote_files = models.TextField(blank=True)
 
     # Extend default permission model
     class Meta:
