@@ -59,11 +59,6 @@ class Task(models.Model):
     # FIXME: remote source field
     source = SafeCharField(max_length=256, default="unknown")
     status = models.CharField(max_length=32, default=StatusChoice.ANNOTATION)
-    # FIXME: multiple files upload doesn't work
-    client_files = models.FileField(upload_to=upload_path_handler, storage=fs,
-        blank=True)
-    server_files = models.TextField(blank=True)
-    remote_files = models.TextField(blank=True)
 
     # Extend default permission model
     class Meta:
@@ -97,6 +92,29 @@ class Task(models.Model):
 
     def __str__(self):
         return self.name
+
+class ClientFile(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    path = models.FileField(upload_to=upload_path_handler,
+        storage=fs)
+
+    class Meta:
+        default_permissions = ()
+
+class ServerFile(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    path = models.CharField(max_length=1024)
+
+    class Meta:
+        default_permissions = ()
+
+class RemoteFile(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    path = models.CharField(max_length=1024)
+
+    class Meta:
+        default_permissions = ()
+
 
 class Segment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)

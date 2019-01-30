@@ -4,7 +4,7 @@
 
 from rest_framework import serializers
 from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
-    Segment)
+    Segment, ClientFile, ServerFile, RemoteFile)
 
 from django.contrib.auth.models import User, Group
 
@@ -51,16 +51,41 @@ class SegmentSerializer(serializers.ModelSerializer):
         model = Segment
         fields = ('start_frame', 'stop_frame', 'jobs')
 
+class ClientFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientFile
+        fields = ('path', )
+
+    def to_internal_value(self, data):
+        return { "path": data }
+
+
+class ServerFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServerFile
+        fields = ('path', )
+
+    def to_internal_value(self, data):
+        return { "path": data }
+
+
+class RemoteFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RemoteFile
+        fields = ('path', )
+
+    def to_internal_value(self, data):
+        return { "path": data }
+
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set')
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
-    server_files = serializers.ListField(
-        child=serializers.CharField(max_length=1024, trim_whitespace=True)
-    )
-    remote_files = serializers.ListField(
-        child=serializers.CharField(max_length=1024)
-    )
-
+    client_files = ClientFileSerializer(many=True, source='clientfile_set',
+        write_only=True)
+    server_files = ServerFileSerializer(many=True, source='serverfile_set',
+        write_only=True)
+    remote_files = RemoteFileSerializer(many=True, source='remotefile_set',
+        write_only=True)
 
     class Meta:
         model = Task
@@ -70,13 +95,24 @@ class TaskSerializer(serializers.ModelSerializer):
             'server_files', 'client_files', 'remote_files')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'overlap', 'status', 'segment_size')
-        write_only_fields = ('server_files', 'client_files', 'remote_files')
 
     def create(self, validated_data):
-        labels = validated_data.pop('labels')
+        labels = validated_data.pop('label_set')
+        client_files = validated_data.pop('clientfile_set')
+        server_files = validated_data.pop('serverfile_set')
+        remote_files = validated_data.pop('remotefile_set')
         task = Task.objects.create(**validated_data)
         for label in labels:
             Label.objects.create(task=task, **label)
+
+        for path in client_files:
+            ClientFile.objects.create(task=task, path=path)
+
+        for path in server_files:
+            ServerFile.objects.create(task=task, path=path)
+
+        for path in remote_files:
+            RemoteFile.objects.create(task=task, path=path)
 
         return task
 
