@@ -7,6 +7,8 @@ from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
     Segment, ClientFile, ServerFile, RemoteFile)
 
 from django.contrib.auth.models import User, Group
+import os
+import shutil
 
 class AttributeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,14 +20,6 @@ class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
         fields = ('id', 'name', 'attributes')
-
-    def create(self, validated_data):
-        attributes = validated_data.pop('attributes')
-        label = Label.objects.create(**validated_data)
-        for attr in attributes:
-            AttributeSpec.objects.create(label=label, **attr)
-
-        return label
 
 class JobSerializer(serializers.ModelSerializer):
     task_id = serializers.ReadOnlyField(source="segment.task.id")
@@ -57,25 +51,25 @@ class ClientFileSerializer(serializers.ModelSerializer):
         fields = ('path', )
 
     def to_internal_value(self, data):
-        return { "path": data }
+        return { 'file': data }
 
 
 class ServerFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServerFile
-        fields = ('path', )
+        fields = ('file', )
 
     def to_internal_value(self, data):
-        return { "path": data }
+        return { 'file': data }
 
 
 class RemoteFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RemoteFile
-        fields = ('path', )
+        fields = ('file', )
 
     def to_internal_value(self, data):
-        return { "path": data }
+        return { 'file' : data }
 
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set')
@@ -95,26 +89,39 @@ class TaskSerializer(serializers.ModelSerializer):
             'server_files', 'client_files', 'remote_files')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'overlap', 'status', 'segment_size')
+        ordering = ['-id']
 
     def create(self, validated_data):
         labels = validated_data.pop('label_set')
         client_files = validated_data.pop('clientfile_set')
         server_files = validated_data.pop('serverfile_set')
         remote_files = validated_data.pop('remotefile_set')
-        task = Task.objects.create(**validated_data)
+        db_task = Task.objects.create(size=0, **validated_data)
         for label in labels:
-            Label.objects.create(task=task, **label)
+            attributes = label.pop('attributespec_set')
+            db_label = Label.objects.create(task=db_task, **label)
+            for attr in attributes:
+                AttributeSpec.objects.create(label=db_label, **attr)
 
-        for path in client_files:
-            ClientFile.objects.create(task=task, path=path)
+        for file in client_files:
+            ClientFile.objects.create(task=db_task, file=file)
 
-        for path in server_files:
-            ServerFile.objects.create(task=task, path=path)
+        for file in server_files:
+            ServerFile.objects.create(task=db_task, file=file)
 
-        for path in remote_files:
-            RemoteFile.objects.create(task=task, path=path)
+        for file in remote_files:
+            RemoteFile.objects.create(task=db_task, file=file)
 
-        return task
+        task_path = db_task.get_task_dirname()
+        if os.path.isdir(task_path):
+            shutil.rmtree(task_path)
+
+        upload_dir = db_task.get_upload_dirname()
+        os.makedirs(upload_dir)
+        output_dir = db_task.get_data_dirname()
+        os.makedirs(output_dir)
+
+        return db_task
 
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.SlugRelatedField(many=True,

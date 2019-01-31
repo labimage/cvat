@@ -42,12 +42,9 @@ def create_empty(params):
 
     db_task.name = params['task_name']
     db_task.bug_tracker = params['bug_tracker_link']
-    db_task.path = ""
     db_task.size = 0
     db_task.owner = params['owner']
     db_task.save()
-    task_path = os.path.join(settings.DATA_ROOT, str(db_task.id))
-    db_task.set_task_dirname(task_path)
 
     task_path = db_task.get_task_dirname()
     if os.path.isdir(task_path):

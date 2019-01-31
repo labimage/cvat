@@ -15,13 +15,10 @@ import shlex
 import csv
 import re
 import os
+import sys
 
-fs = FileSystemStorage()
 
-def upload_path_handler(instance, filename):
-    return os.path.join(instance.get_upload_dirname(), filename)
-
-class StatusChoice(Enum):
+class StatusChoice(str, Enum):
     ANNOTATION = 'annotation'
     VALIDATION = 'validation'
     COMPLETED = 'completed'
@@ -29,9 +26,6 @@ class StatusChoice(Enum):
     @classmethod
     def choices(self):
         return tuple((x.name, x.value) for x in self)
-
-    def __str__(self):
-        return self.value
 
 class SafeCharField(models.CharField):
     def get_prep_value(self, value):
@@ -43,7 +37,6 @@ class SafeCharField(models.CharField):
 class Task(models.Model):
     name = SafeCharField(max_length=256)
     size = models.PositiveIntegerField()
-    path = models.CharField(max_length=256)
     mode = models.CharField(max_length=32)
     owner = models.ForeignKey(User, null=True, blank=True,
         on_delete=models.SET_NULL, related_name="owners")
@@ -53,64 +46,67 @@ class Task(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now_add=True)
     overlap = models.PositiveIntegerField(default=0)
-    segment_size = models.PositiveIntegerField()
+    segment_size = models.PositiveIntegerField(default=sys.maxsize)
     z_order = models.BooleanField(default=False)
     flipped = models.BooleanField(default=False)
     # FIXME: remote source field
     source = SafeCharField(max_length=256, default="unknown")
-    status = models.CharField(max_length=32, default=StatusChoice.ANNOTATION)
+    status = models.CharField(max_length=32, choices=StatusChoice.choices(),
+        default=StatusChoice.ANNOTATION)
 
     # Extend default permission model
     class Meta:
         default_permissions = ()
 
     def get_upload_dirname(self):
-        return os.path.join(self.path, ".upload")
+        return os.path.join(self.get_task_dirname(), ".upload")
 
     def get_data_dirname(self):
-        return os.path.join(self.path, "data")
+        return os.path.join(self.get_task_dirname(), "data")
 
     def get_dump_path(self):
         name = re.sub(r'[\\/*?:"<>|]', '_', self.name)
-        return os.path.join(self.path, "{}.xml".format(name))
+        return os.path.join(self.get_task_dirname(), "{}.xml".format(name))
 
     def get_log_path(self):
-        return os.path.join(self.path, "task.log")
+        return os.path.join(self.get_task_dirname(), "task.log")
 
     def get_client_log_path(self):
-        return os.path.join(self.path, "client.log")
+        return os.path.join(self.get_task_dirname(), "client.log")
 
     def get_image_meta_cache_path(self):
-        return os.path.join(self.path, "image_meta.cache")
-
-    def set_task_dirname(self, path):
-        self.path = path
-        self.save(update_fields=['path'])
+        return os.path.join(self.get_task_dirname(), "image_meta.cache")
 
     def get_task_dirname(self):
-        return self.path
+        return os.path.join(settings.DATA_ROOT, str(self.id))
 
     def __str__(self):
         return self.name
 
+def upload_path_handler(instance, filename):
+    return os.path.join(instance.get_upload_dirname(), filename)
+
+# For client files which the user is uploaded
 class ClientFile(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    path = models.FileField(upload_to=upload_path_handler,
-        storage=fs)
+    file = models.FileField(upload_to=upload_path_handler,
+        storage=FileSystemStorage)
 
     class Meta:
         default_permissions = ()
 
+# For server files on the mounted share
 class ServerFile(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    path = models.CharField(max_length=1024)
+    file = models.CharField(max_length=1024)
 
     class Meta:
         default_permissions = ()
 
+# For URLs
 class RemoteFile(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    path = models.CharField(max_length=1024)
+    file = models.CharField(max_length=1024)
 
     class Meta:
         default_permissions = ()
