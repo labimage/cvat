@@ -40,6 +40,9 @@ urlpatterns = [
     path( # GET, DELETE, PATCH
         REST_API_PREFIX + 'tasks/<int:pk>', views.TaskDetail.as_view(),
         name='task-detail'),
+    path( # GET
+        REST_API_PREFIX + 'tasks/<int:pk>/status', views.TaskStatus.as_view(),
+        name='task-status'),
     # GET meta information for all frames
     path(REST_API_PREFIX + 'tasks/<int:pk>/frames/meta',
         views.get_image_meta_cache, name='image-meta-cache'),
@@ -79,8 +82,6 @@ urlpatterns = [
         views.dummy_view,
         name='plugin-request-detail'),
 
-    path('create/task', views.create_task), ####
-    path('check/task/<int:tid>', views.check_task), ####
     path('delete/task/<int:tid>', views.delete_task), ####
     path('update/task/<int:tid>', views.update_task), ####
     path('dump/annotation/task/<int:tid>', views.dump_annotation), ###

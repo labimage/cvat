@@ -20,7 +20,7 @@
 /* Server requests */
 function createTaskRequest(oData, onSuccessRequest, onSuccessCreate, onError, onComplete, onUpdateStatus) {
     $.ajax({
-        url: "/create/task",
+        url: "/api/v1/tasks/",
         type: "POST",
         data: oData,
         contentType: false,
@@ -42,7 +42,7 @@ function createTaskRequest(oData, onSuccessRequest, onSuccessCreate, onError, on
 
         let requestInterval = setInterval(function() {
             $.ajax({
-                url: "/check/task/" + tid,
+                url: "/api/v1/tasks/{}/status".format(tid),
                 success: receiveStatus,
                 error: function(data) {
                     clearInterval(requestInterval);
@@ -54,20 +54,20 @@ function createTaskRequest(oData, onSuccessRequest, onSuccessCreate, onError, on
 
         function receiveStatus(data) {
             if (done) return;
-            if (data["state"] === "created") {
+            if (data.state === "Finished") {
                 done = true;
                 clearInterval(requestInterval);
                 onComplete();
                 onSuccessCreate(tid);
             }
-            else if (data["state"] === "error") {
+            else if (data.state === "Failed") {
                 done = true;
                 clearInterval(requestInterval);
                 onComplete();
-                onError(data.stderr);
+                onError(data.message);
             }
-            else if (data["state"] === "started" && "status" in data) {
-                onUpdateStatus(data["status"]);
+            else if (data["state"] === "Started" && data.message != "") {
+                onUpdateStatus(data.message);
             }
         }
     }
@@ -75,13 +75,12 @@ function createTaskRequest(oData, onSuccessRequest, onSuccessCreate, onError, on
 
 
 function updateTaskRequest(labels) {
-    let oData = new FormData();
-    oData.append("labels", labels);
+    let data = new LabelsInfo(labels);
 
     $.ajax({
-        url: "/update/task/" + window.cvat.dashboard.taskID,
-        type: "POST",
-        data: oData,
+        url: "/api/v1/tasks/" + window.cvat.dashboard.taskID,
+        type: "PATCH",
+        data: data,
         contentType: false,
         processData: false,
         success: function() {
@@ -509,25 +508,28 @@ function setupTaskCreator() {
         }
 
         let taskData = new FormData();
-        taskData.append("task_name", name);
-        taskData.append("bug_tracker_link", bugTrackerLink);
+        taskData.append("name", name);
+        taskData.append("bug_tracker", bugTrackerLink);
         taskData.append("labels", labels);
-        taskData.append("flip_flag", flipImages);
+        taskData.append("flipped", flipImages);
         taskData.append("z_order", zOrder);
-        taskData.append("storage", source);
 
         if (customSegmentSize.prop("checked")) {
             taskData.append("segment_size", segmentSize);
         }
         if (customOverlapSize.prop("checked")) {
-            taskData.append("overlap_size", overlapSize);
+            taskData.append("overlap", overlapSize);
         }
         if (customCompressQuality.prop("checked")) {
-            taskData.append("compress_quality", compressQuality);
+            taskData.append("image_quality", compressQuality);
         }
 
         for (let file of files) {
-            taskData.append("data", file);
+            if (source === "local") {
+                taskData.append("client_files", file);
+            } else {
+                taskData.append("server_files", file);
+            }
         }
 
         submitCreate.prop("disabled", true);

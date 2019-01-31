@@ -71,22 +71,28 @@ class RemoteFileSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         return { 'file' : data }
 
+class RequestStatusSerializer(serializers.Serializer):
+    state = serializers.ChoiceField(choices=["Unknown",
+        "Queued", "Started", "Finished", "Failed"])
+    message = serializers.CharField(allow_blank=True, default="")
+
 class TaskSerializer(serializers.ModelSerializer):
-    labels = LabelSerializer(many=True, source='label_set')
+    labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     client_files = ClientFileSerializer(many=True, source='clientfile_set',
-        write_only=True)
+        write_only=True, partial=True)
     server_files = ServerFileSerializer(many=True, source='serverfile_set',
-        write_only=True)
+        write_only=True, partial=True)
     remote_files = RemoteFileSerializer(many=True, source='remotefile_set',
-        write_only=True)
+        write_only=True, partial=True)
+    image_quality = serializers.IntegerField(min_value=0, max_value=100)
 
     class Meta:
         model = Task
         fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments',
-            'server_files', 'client_files', 'remote_files')
+            'server_files', 'client_files', 'remote_files', 'image_quality')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'overlap', 'status', 'segment_size')
         ordering = ['-id']
@@ -96,6 +102,8 @@ class TaskSerializer(serializers.ModelSerializer):
         client_files = validated_data.pop('clientfile_set')
         server_files = validated_data.pop('serverfile_set')
         remote_files = validated_data.pop('remotefile_set')
+        if not validated_data.get('segment_size'):
+            validated_data['segment_size'] = 0
         db_task = Task.objects.create(size=0, **validated_data)
         for label in labels:
             attributes = label.pop('attributespec_set')

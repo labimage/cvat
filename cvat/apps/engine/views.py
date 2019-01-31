@@ -9,7 +9,7 @@ import traceback
 from ast import literal_eval
 
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.conf import settings
 from rules.contrib.views import permission_required, objectgetter
 from django.views.decorators.gzip import gzip_page
@@ -19,7 +19,8 @@ from rest_framework.decorators import api_view, APIView
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.renderers import JSONRenderer
-
+from rest_framework import status
+import django_rq
 
 
 from . import annotation, task, models
@@ -30,7 +31,8 @@ import logging
 from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
-   ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer)
+   ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
+   RequestStatusSerializer)
 from django.contrib.auth.models import User
 
 # Server REST API
@@ -60,6 +62,36 @@ class TaskList(generics.ListCreateAPIView):
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+
+class TaskStatus(APIView):
+    serializer_class = RequestStatusSerializer
+
+    def get(self, request, version, pk):
+        db_task = get_object_or_404(Task, pk=pk)
+        response = self._get_response(queue="default",
+            job_id="api/{}/tasks/{}".format(version, pk))
+        serializer = TaskStatus.serializer_class(data=response)
+
+        if serializer.is_valid(raise_exception=True):
+            return Response(serializer.data)
+
+    def _get_response(self, queue, job_id):
+        queue = django_rq.get_queue(queue)
+        job = queue.fetch_job(job_id)
+        response = {}
+        if job is None or job.is_finished:
+            response = { "state": "Finished" }
+        elif job.is_queued:
+            response = { "state": "Queued" }
+        elif job.is_failed:
+            response = { "state": "Failed", "message": job.exc_info }
+        else:
+            response = { "state": "Started" }
+            if 'status' in job.meta:
+                response['message'] = job.meta['status']
+
+        return response
+
 
 class JobList(generics.ListAPIView):
     queryset = Job.objects.all()
