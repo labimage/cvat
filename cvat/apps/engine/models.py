@@ -49,7 +49,7 @@ class Task(models.Model):
     segment_size = models.PositiveIntegerField()
     z_order = models.BooleanField(default=False)
     flipped = models.BooleanField(default=False)
-    image_quality = models.PositiveSmallIntegerField(default=50)
+    image_quality = models.PositiveSmallIntegerField()
     # FIXME: remote source field
     source = SafeCharField(max_length=256, default="unknown")
     status = models.CharField(max_length=32, choices=StatusChoice.choices(),

@@ -510,7 +510,8 @@ function setupTaskCreator() {
         let taskData = new FormData();
         taskData.append("name", name);
         taskData.append("bug_tracker", bugTrackerLink);
-        taskData.append("labels", labels);
+        let labesInfo = new LabelsInfo(labels);
+        taskData.append("labels[0]", labels);
         taskData.append("flipped", flipImages);
         taskData.append("z_order", zOrder);
 

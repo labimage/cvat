@@ -80,12 +80,13 @@ class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     client_files = ClientFileSerializer(many=True, source='clientfile_set',
-        write_only=True, partial=True)
+        write_only=True, default=[])
     server_files = ServerFileSerializer(many=True, source='serverfile_set',
-        write_only=True, partial=True)
+        write_only=True, default=[])
     remote_files = RemoteFileSerializer(many=True, source='remotefile_set',
-        write_only=True, partial=True)
-    image_quality = serializers.IntegerField(min_value=0, max_value=100)
+        write_only=True, default=[])
+    image_quality = serializers.IntegerField(min_value=0, max_value=100,
+        default=50)
 
     class Meta:
         model = Task
