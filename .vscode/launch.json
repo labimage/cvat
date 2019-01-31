@@ -15,16 +15,11 @@
             "args": [
                 "runserver",
                 "--noreload",
-                "--nothreading",
                 "--insecure",
                 "127.0.0.1:7000"
             ],
-            "debugOptions": [
-                "RedirectOutput",
-                "DjangoDebugging"
-            ],
-            "cwd": "${workspaceFolder}",
-            "envFile": "${workspaceFolder}/.env",
+            "django": true,
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "CVAT Client",
@@ -53,14 +48,9 @@
                 "--worker-class",
                 "cvat.simpleworker.SimpleWorker",
             ],
-            "debugOptions": [
-                "RedirectOutput",
-                "DjangoDebugging"
-            ],
+            "django": true,
             "cwd": "${workspaceFolder}",
-            "env": {},
-            "envFile": "${workspaceFolder}/.env",
-
+            "env": {}
         },
         {
             "name": "CVAT RQ - low",
@@ -76,13 +66,9 @@
                 "--worker-class",
                 "cvat.simpleworker.SimpleWorker",
             ],
-            "debugOptions": [
-                "RedirectOutput",
-                "DjangoDebugging"
-            ],
+            "django": true,
             "cwd": "${workspaceFolder}",
-            "env": {},
-            "envFile": "${workspaceFolder}/.env",
+            "env": {}
         },
         {
             "name": "CVAT git",
@@ -95,13 +81,9 @@
             "args": [
                 "update_git_states"
             ],
-            "debugOptions": [
-                "RedirectOutput",
-                "DjangoDebugging"
-            ],
+            "django": true,
             "cwd": "${workspaceFolder}",
-            "env": {},
-            "envFile": "${workspaceFolder}/.env",
+            "env": {}
         },
     ],
     "compounds": [
