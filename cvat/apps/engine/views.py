@@ -54,7 +54,7 @@ class TaskList(generics.ListCreateAPIView):
     serializer_class = TaskSerializer
 
     def perform_create(self, serializer):
-        if self.request.data['owner']:
+        if self.request.data.get('owner', None):
             serializer.save()
         else:
             serializer.save(owner=self.request.user)

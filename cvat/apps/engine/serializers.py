@@ -9,6 +9,7 @@ from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
 from django.contrib.auth.models import User, Group
 import os
 import shutil
+import json
 
 class AttributeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,10 +17,18 @@ class AttributeSerializer(serializers.ModelSerializer):
         fields = ('id', 'text')
 
 class LabelSerializer(serializers.ModelSerializer):
-    attributes = AttributeSerializer(many=True, source='attributespec_set')
+    attributes = AttributeSerializer(many=True, source='attributespec_set',
+        default=[])
     class Meta:
         model = Label
         fields = ('id', 'name', 'attributes')
+
+    # When data is a part of multipart/form-data need to convert labels from
+    # json string to the internal representation.
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            data = json.loads(data)
+        return super().to_internal_value(data)
 
 class JobSerializer(serializers.ModelSerializer):
     task_id = serializers.ReadOnlyField(source="segment.task.id")

@@ -35,14 +35,14 @@ function createTaskRequest(oData, onSuccessRequest, onSuccessCreate, onError, on
         }
     });
 
-    function requestCreatingStatus(data) {
-        let tid = data.tid;
+    function requestCreatingStatus(task) {
+        let tid = task.id;
         let request_frequency_ms = 1000;
         let done = false;
 
         let requestInterval = setInterval(function() {
             $.ajax({
-                url: "/api/v1/tasks/{}/status".format(tid),
+                url: `/api/v1/tasks/${tid}/status`,
                 success: receiveStatus,
                 error: function(data) {
                     clearInterval(requestInterval);
@@ -510,8 +510,28 @@ function setupTaskCreator() {
         let taskData = new FormData();
         taskData.append("name", name);
         taskData.append("bug_tracker", bugTrackerLink);
-        let labesInfo = new LabelsInfo(labels);
-        taskData.append("labels[0]", labels);
+        // FIXME: a trivial parser for labels
+        labels = labels.split(/\s+/);
+        let labelObjs = [];
+        for (let labelIdx = 0; labelIdx < labels.length; labelIdx++) {
+            let label = labels[labelIdx]
+            let attributes = [];
+            while (labelIdx + 1 < labels.length) {
+                if (labels[labelIdx + 1].startsWith("~") ||
+                    labels[labelIdx + 1].startsWith("@")) {
+                    attributes.push({"text" : labels[++labelIdx]});
+                } else {
+                    break;
+                }
+            }
+
+            labelObjs.push(JSON.stringify(
+                {"name": label, "attributes": attributes }));
+        }
+        for (let i = 0; i < labelObjs.length; i++) {
+            taskData.append(`labels[${i}]`, labelObjs[i]);
+        }
+
         taskData.append("flipped", flipImages);
         taskData.append("z_order", zOrder);
 
