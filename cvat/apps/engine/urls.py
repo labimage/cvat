@@ -3,23 +3,20 @@
 #
 # SPDX-License-Identifier: MIT
 
-from django.urls import path
+from django.urls import path, include
 from . import views
+from rest_framework import routers
 
 REST_API_PREFIX = 'api/<version>/'
 
+router = routers.DefaultRouter(trailing_slash=False)
+router.register("tasks", views.TaskViewSet)
+router.register("jobs", views.JobViewSet)
+router.register("users", views.UserViewSet)
+
 urlpatterns = [
     # entry point for API
-    path(REST_API_PREFIX, views.api_root, name='root'),
-    # GET list of users, POST a new user
-    path(REST_API_PREFIX + 'users/', views.UserList.as_view(),
-        name='user-list'),
-    # GET current active user
-    path(REST_API_PREFIX + 'users/self', views.UserSelf.as_view(),
-        name='user-self'),
-    # GET, DELETE, PATCH the user
-    path(REST_API_PREFIX + 'users/<int:pk>', views.UserDetail.as_view(),
-        name='user-detail'),
+    path(REST_API_PREFIX, include(router.urls)),
     # GET a frame for a specific task
     path(REST_API_PREFIX + 'tasks/<int:pk>/frames/<int:frame>',
         views.get_frame, name='task-frame'),
@@ -28,24 +25,9 @@ urlpatterns = [
         name='exception-list'),
     # GET information about the backend
     path(REST_API_PREFIX + 'about/', views.About.as_view(), name='about'),
-    # GET a list of jobs for a specific task
-    path(REST_API_PREFIX + 'tasks/<int:pk>/jobs/', views.JobList.as_view(),
-        name='job-list'),
-    # GET and PATCH the specific job
-    path(REST_API_PREFIX + 'jobs/<int:pk>', views.JobDetail.as_view(),
-        name='job-detail'),
-    # GET a list of annotation tasks, POST an annotation task
-    path(REST_API_PREFIX + 'tasks/', views.TaskList.as_view(),
-        name='task-list'),
-    path( # GET, DELETE, PATCH
-        REST_API_PREFIX + 'tasks/<int:pk>', views.TaskDetail.as_view(),
-        name='task-detail'),
     path( # PUT
-        REST_API_PREFIX + 'tasks/<int:pk>/data/', views.TaskDetail.as_view(),
+        REST_API_PREFIX + 'tasks/<int:pk>/data', views.dummy_view,
         name='task-data'),
-    path( # GET
-        REST_API_PREFIX + 'tasks/<int:pk>/status', views.TaskStatus.as_view(),
-        name='task-status'),
     # GET meta information for all frames
     path(REST_API_PREFIX + 'tasks/<int:pk>/frames/meta',
         views.get_image_meta_cache, name='image-meta-cache'),

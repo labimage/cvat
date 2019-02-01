@@ -20,6 +20,9 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.renderers import JSONRenderer
 from rest_framework import status
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework import mixins
 import django_rq
 
 
@@ -32,52 +35,33 @@ from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
-   RequestStatusSerializer)
+   RqStatusSerializer)
 from django.contrib.auth.models import User
 
 # Server REST API
 
-@api_view(['GET'])
-def api_root(request, version=None):
-    return Response({
-        'tasks': reverse('task-list', request=request),
-        'users': reverse('user-list', request=request),
-        'myself': reverse('user-self', request=request),
-        'exceptions': reverse('exception-list', request=request),
-        'about': reverse('about', request=request),
-        'plugins': reverse('plugin-list', request=request)
-    })
-
-
-class TaskList(generics.ListCreateAPIView):
+class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
-    def perform_create(self, serializer):
-        if self.request.data.get('owner', None):
-            serializer.save()
-        else:
-            serializer.save(owner=self.request.user)
-        tid = serializer.data["id"]
-        task.create(tid, serializer.data)
+    @action(detail=True, methods=['GET'], serializer_class=JobSerializer)
+    def jobs(self, request, pk, version):
+        queryset = Job.objects.filter(segment__task_id=pk)
+        serializer = JobSerializer(queryset, many=True,
+            context={"request": request})
 
-class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
+        return Response(serializer.data)
 
-class TaskStatus(APIView):
-    serializer_class = RequestStatusSerializer
-
-    def get(self, request, version, pk):
-        db_task = get_object_or_404(Task, pk=pk)
-        response = self._get_response(queue="default",
+    @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
+    def status(self, request, pk, version):
+        response = self._get_rq_response(queue="default",
             job_id="/api/{}/tasks/{}".format(version, pk))
-        serializer = TaskStatus.serializer_class(data=response)
+        serializer = RqStatusSerializer(data=response)
 
         if serializer.is_valid(raise_exception=True):
             return Response(serializer.data)
 
-    def _get_response(self, queue, job_id):
+    def _get_rq_response(self, queue, job_id):
         queue = django_rq.get_queue(queue)
         job = queue.fetch_job(job_id)
         response = {}
@@ -95,37 +79,26 @@ class TaskStatus(APIView):
         return response
 
 
-class JobList(generics.ListAPIView):
+    def perform_create(self, serializer):
+        if self.request.data.get('owner', None):
+            serializer.save()
+        else:
+            serializer.save(owner=self.request.user)
+
+
+class JobViewSet(viewsets.GenericViewSet,
+    mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
-    def list(self, request, pk, version=None):
-        queryset = self.queryset.filter(segment__task_id=pk)
-        serializer = JobSerializer(queryset, many=True,
-            context={"request": request})
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
+    @action(detail=False, methods=['GET'], serializer_class=UserSerializer)
+    def self(self, request, version):
+        serializer = UserSerializer(request.user, context={ "request": request })
         return Response(serializer.data)
-
-class JobDetail(generics.RetrieveUpdateAPIView):
-    queryset = Job.objects.all()
-    serializer_class = JobSerializer
-
-class UserList(generics.ListCreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-
-class UserDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-
-class UserSelf(generics.RetrieveAPIView):
-    serializer_class = UserSerializer
-
-    def get_object(self):
-        return self.request.user
-
 
 @login_required
 @permission_required(perm=['engine.task.access'],

@@ -80,20 +80,29 @@ class RemoteFileSerializer(serializers.ModelSerializer):
     def to_internal_value(self, data):
         return { 'file' : data }
 
-class RequestStatusSerializer(serializers.Serializer):
-    state = serializers.ChoiceField(choices=["Unknown",
+class RqStatusSerializer(serializers.Serializer):
+    state = serializers.ChoiceField(choices=[
         "Queued", "Started", "Finished", "Failed"])
     message = serializers.CharField(allow_blank=True, default="")
+
+class TaskDataSerializer(serializers.ModelSerializer):
+    client_files = ClientFileSerializer(many=True, source='clientfile_set',
+        default=[])
+    server_files = ServerFileSerializer(many=True, source='serverfile_set',
+        default=[])
+    remote_files = RemoteFileSerializer(many=True, source='remotefile_set',
+        default=[])
+
+    class Meta:
+        model = Task
+        fields = ('client_files', 'server_files', 'remote_files')
+
+    def create(self, validated_data):
+        pass
 
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
-    client_files = ClientFileSerializer(many=True, source='clientfile_set',
-        write_only=True, default=[])
-    server_files = ServerFileSerializer(many=True, source='serverfile_set',
-        write_only=True, default=[])
-    remote_files = RemoteFileSerializer(many=True, source='remotefile_set',
-        write_only=True, default=[])
     image_quality = serializers.IntegerField(min_value=0, max_value=100,
         default=50)
 
@@ -102,16 +111,13 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = ('url', 'id', 'name', 'size', 'mode', 'owner', 'assignee',
             'bug_tracker', 'created_date', 'updated_date', 'overlap',
             'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments',
-            'server_files', 'client_files', 'remote_files', 'image_quality')
+            'image_quality')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
             'overlap', 'status', 'segment_size')
         ordering = ['-id']
 
     def create(self, validated_data):
         labels = validated_data.pop('label_set')
-        client_files = validated_data.pop('clientfile_set')
-        server_files = validated_data.pop('serverfile_set')
-        remote_files = validated_data.pop('remotefile_set')
         if not validated_data.get('segment_size'):
             validated_data['segment_size'] = 0
         db_task = Task.objects.create(size=0, **validated_data)
@@ -120,17 +126,6 @@ class TaskSerializer(serializers.ModelSerializer):
             db_label = Label.objects.create(task=db_task, **label)
             for attr in attributes:
                 AttributeSpec.objects.create(label=db_label, **attr)
-
-        for obj in client_files:
-            serializer = ClientFileSerializer(data=obj['file'])
-            if serializer.is_valid(raise_exception=True):
-                serializer.save()
-
-        for path in server_files:
-            ServerFile.objects.create(task=db_task, file=path)
-
-        for path in remote_files:
-            RemoteFile.objects.create(task=db_task, file=path)
 
         task_path = db_task.get_task_dirname()
         if os.path.isdir(task_path):
