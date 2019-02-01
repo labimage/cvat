@@ -85,13 +85,13 @@ class Task(models.Model):
         return self.name
 
 def upload_path_handler(instance, filename):
-    return os.path.join(instance.get_upload_dirname(), filename)
+    return os.path.join(instance.task.get_upload_dirname(), filename)
 
 # For client files which the user is uploaded
 class ClientFile(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     file = models.FileField(upload_to=upload_path_handler,
-        storage=FileSystemStorage)
+        storage=FileSystemStorage())
 
     class Meta:
         default_permissions = ()

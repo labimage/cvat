@@ -57,7 +57,7 @@ class SegmentSerializer(serializers.ModelSerializer):
 class ClientFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientFile
-        fields = ('path', )
+        fields = ('file', )
 
     def to_internal_value(self, data):
         return { 'file': data }
@@ -121,14 +121,16 @@ class TaskSerializer(serializers.ModelSerializer):
             for attr in attributes:
                 AttributeSpec.objects.create(label=db_label, **attr)
 
-        for file in client_files:
-            ClientFile.objects.create(task=db_task, file=file)
+        for obj in client_files:
+            serializer = ClientFileSerializer(data=obj['file'])
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
 
-        for file in server_files:
-            ServerFile.objects.create(task=db_task, file=file)
+        for path in server_files:
+            ServerFile.objects.create(task=db_task, file=path)
 
-        for file in remote_files:
-            RemoteFile.objects.create(task=db_task, file=file)
+        for path in remote_files:
+            RemoteFile.objects.create(task=db_task, file=path)
 
         task_path = db_task.get_task_dirname()
         if os.path.isdir(task_path):

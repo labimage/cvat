@@ -58,6 +58,8 @@ class TaskList(generics.ListCreateAPIView):
             serializer.save()
         else:
             serializer.save(owner=self.request.user)
+        tid = serializer.data["id"]
+        task.create(tid, serializer.data)
 
 class TaskDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all()
@@ -69,7 +71,7 @@ class TaskStatus(APIView):
     def get(self, request, version, pk):
         db_task = get_object_or_404(Task, pk=pk)
         response = self._get_response(queue="default",
-            job_id="api/{}/tasks/{}".format(version, pk))
+            job_id="/api/{}/tasks/{}".format(version, pk))
         serializer = TaskStatus.serializer_class(data=response)
 
         if serializer.is_valid(raise_exception=True):

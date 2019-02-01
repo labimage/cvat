@@ -62,7 +62,7 @@ def create(tid, params):
     """Schedule the task"""
     q = django_rq.get_queue('default')
     q.enqueue_call(func=_create_thread, args=(tid, params),
-        job_id="task.create/{}".format(tid))
+        job_id="/api/v1/tasks/{}".format(tid))
 
 def check(tid):
     """Check status of the scheduled task"""

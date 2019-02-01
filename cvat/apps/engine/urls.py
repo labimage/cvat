@@ -40,6 +40,9 @@ urlpatterns = [
     path( # GET, DELETE, PATCH
         REST_API_PREFIX + 'tasks/<int:pk>', views.TaskDetail.as_view(),
         name='task-detail'),
+    path( # PUT
+        REST_API_PREFIX + 'tasks/<int:pk>/data/', views.TaskDetail.as_view(),
+        name='task-data'),
     path( # GET
         REST_API_PREFIX + 'tasks/<int:pk>/status', views.TaskStatus.as_view(),
         name='task-status'),

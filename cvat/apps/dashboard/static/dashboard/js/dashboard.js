@@ -545,11 +545,11 @@ function setupTaskCreator() {
             taskData.append("image_quality", compressQuality);
         }
 
-        for (let file of files) {
+        for (let j = 0; j < files.length; j++) {
             if (source === "local") {
-                taskData.append("client_files", file);
+                taskData.append(`client_files[${j}]`, files[j]);
             } else {
-                taskData.append("server_files", file);
+                taskData.append(`server_files[${j}]`, files[j]);
             }
         }
 
