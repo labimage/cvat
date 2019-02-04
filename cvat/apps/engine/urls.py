@@ -6,6 +6,7 @@
 from django.urls import path, include
 from . import views
 from rest_framework import routers
+from rest_framework.documentation import include_docs_urls
 
 REST_API_PREFIX = 'api/<version>/'
 
@@ -15,11 +16,17 @@ router.register("jobs", views.JobViewSet)
 router.register("users", views.UserViewSet)
 
 urlpatterns = [
+    # documentation for API
+    path('api/docs/', include_docs_urls(title='CVAT REST API')),
     # entry point for API
     path(REST_API_PREFIX, include(router.urls)),
     # GET a frame for a specific task
     path(REST_API_PREFIX + 'tasks/<int:pk>/frames/<int:frame>',
         views.get_frame, name='task-frame'),
+    # GET meta information for all frames
+    path(REST_API_PREFIX + 'tasks/<int:pk>/frames/meta',
+        views.get_image_meta_cache, name='image-meta-cache'),
+
     # POST an exception
     path(REST_API_PREFIX + 'exceptions/', views.ClientException.as_view(),
         name='exception-list'),
@@ -28,9 +35,6 @@ urlpatterns = [
     path( # PUT
         REST_API_PREFIX + 'tasks/<int:pk>/data', views.dummy_view,
         name='task-data'),
-    # GET meta information for all frames
-    path(REST_API_PREFIX + 'tasks/<int:pk>/frames/meta',
-        views.get_image_meta_cache, name='image-meta-cache'),
 
 
 

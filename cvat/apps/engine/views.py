@@ -40,6 +40,10 @@ from django.contrib.auth.models import User
 
 # Server REST API
 
+#class ServerViewSet(viewsets.)
+
+
+
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
