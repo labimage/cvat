@@ -97,8 +97,13 @@ class TaskDataSerializer(serializers.ModelSerializer):
         model = Task
         fields = ('client_files', 'server_files', 'remote_files')
 
-    def create(self, validated_data):
-        pass
+    def update(self, instance, validated_data):
+        client_files = validated_data.pop('client_files')
+        server_files = validated_data.pop('server_files')
+        remote_files = validated_data.pop('remote_files')
+
+        return instance
+
 
 class TaskSerializer(serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)

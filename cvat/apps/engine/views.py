@@ -35,7 +35,7 @@ from .log import slogger, clogger
 from cvat.apps.engine.models import StatusChoice, Task, Job
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
-   RqStatusSerializer)
+   RqStatusSerializer, TaskDataSerializer)
 from django.contrib.auth.models import User
 
 # Server REST API
@@ -94,6 +94,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             context={"request": request})
 
         return Response(serializer.data)
+
+    @action(detail=True, methods=['PUT'], serializer_class=TaskDataSerializer)
+    def data(self, request, pk, version):
+        db_task = self.get_object()
+        serializer = TaskDataSerializer(db_task, data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
     def status(self, request, pk, version):

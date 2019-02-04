@@ -21,9 +21,6 @@ urlpatterns = [
     path('api/docs/', include_docs_urls(title='CVAT REST API')),
     # entry point for API
     path(REST_API_PREFIX, include(router.urls)),
-    path( # PUT
-        REST_API_PREFIX + 'tasks/<int:pk>/data', views.dummy_view,
-        name='task-data'),
 
     path( # GET, DELETE, PATCH, PUT
         REST_API_PREFIX + 'tasks/<int:pk>/annotations/',
