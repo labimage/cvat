@@ -59,26 +59,15 @@ class ClientFileSerializer(serializers.ModelSerializer):
         model = ClientFile
         fields = ('file', )
 
-    def to_internal_value(self, data):
-        return { 'file': data }
-
-
 class ServerFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServerFile
         fields = ('file', )
 
-    def to_internal_value(self, data):
-        return { 'file': data }
-
-
 class RemoteFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = RemoteFile
         fields = ('file', )
-
-    def to_internal_value(self, data):
-        return { 'file' : data }
 
 class RqStatusSerializer(serializers.Serializer):
     state = serializers.ChoiceField(choices=[
@@ -98,9 +87,21 @@ class TaskDataSerializer(serializers.ModelSerializer):
         fields = ('client_files', 'server_files', 'remote_files')
 
     def update(self, instance, validated_data):
-        client_files = validated_data.pop('client_files')
-        server_files = validated_data.pop('server_files')
-        remote_files = validated_data.pop('remote_files')
+        client_files = validated_data.pop('clientfile_set')
+        server_files = validated_data.pop('serverfile_set')
+        remote_files = validated_data.pop('remotefile_set')
+
+        for file in client_files:
+            client_file = ClientFile(task=instance, **file)
+            client_file.save()
+
+        for file in server_files:
+            server_file = ServerFile(task=instance, **file)
+            server_file.save()
+
+        for file in remote_files:
+            remote_file = RemoteFile(task=instance, **file)
+            remote_file.save()
 
         return instance
 
