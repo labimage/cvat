@@ -365,8 +365,8 @@ def _get_mime(name):
 
 
 def _get_frame_path(frame, base_dir):
-    d1 = str(frame // 10000)
-    d2 = str(frame // 100)
+    d1 = str(int(frame) // 10000)
+    d2 = str(int(frame) // 100)
     path = os.path.join(d1, d2, str(frame) + '.jpg')
     if base_dir:
         path = os.path.join(base_dir, path)

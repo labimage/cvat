@@ -40,8 +40,47 @@ from django.contrib.auth.models import User
 
 # Server REST API
 
-#class ServerViewSet(viewsets.)
+class ServerViewSet(viewsets.ViewSet):
+    serializer_class = None
 
+    # To get nice documentation about ServerViewSet actions it is necessary
+    # to implement the method. By default, ViewSet doesn't provide it.
+    def get_serializer(self, *args, **kwargs):
+        return self.serializer_class(*args, **kwargs)
+
+    @action(detail=False, methods=['GET'], serializer_class=AboutSerializer)
+    def about(self, request, version=None):
+        from cvat import __version__ as cvat_version
+        about = {
+            "name": "Computer Vision Annotation Tool",
+            "version": cvat_version,
+            "description": "CVAT is completely re-designed and re-implemented " +
+                "version of Video Annotation Tool from Irvine, California " +
+                "tool. It is free, online, interactive video and image annotation " +
+                "tool for computer vision. It is being used by our team to " +
+                "annotate million of objects with different properties. Many UI " +
+                "and UX decisions are based on feedbacks from professional data " +
+                "annotation team."
+        }
+        serializer = AboutSerializer(data=about)
+        if serializer.is_valid(raise_exception=True):
+            return Response(data=serializer.data)
+
+    @action(detail=False, methods=['POST'], serializer_class=ExceptionSerializer)
+    def exception(self, request, version=None):
+        serializer = ExceptionSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            message = JSONRenderer().render(serializer.data)
+            jid = serializer.data["job"]
+            tid = serializer.data["task"]
+            if jid:
+                clogger.job[jid].error(message)
+            elif tid:
+                clogger.task[tid].error(message)
+            else:
+                clogger.glob.error(message)
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -82,6 +121,37 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         return response
 
+    @action(detail=True, methods=['GET'], serializer_class=ImageMetaSerializer,
+        url_path='frames/meta')
+    def data_info(self, request, pk, version=None):
+        try:
+            db_task = models.Task.objects.get(pk=pk)
+            meta_cache_file = open(db_task.get_image_meta_cache_path())
+        except OSError:
+            task.make_image_meta_cache(db_task)
+            meta_cache_file = open(db_task.get_image_meta_cache_path())
+
+        data = literal_eval(meta_cache_file.read())
+        serializer = ImageMetaSerializer(many=True, data=data['original_size'])
+        if serializer.is_valid(raise_exception=True):
+            return Response(serializer.data)
+
+    @action(detail=True, methods=['GET'], serializer_class=None,
+        url_path='frames/(?P<frame>\d+)')
+    def frame(self, request, pk, frame, version=None):
+        """Get a frame for the task"""
+
+        try:
+            # Follow symbol links if the frame is a link on a real image otherwise
+            # mimetype detection inside sendfile will work incorrectly.
+            path = os.path.realpath(task.get_frame_path(pk, frame))
+            return sendfile(request, path)
+        except Exception as e:
+            slogger.task[pk].error(
+                "cannot get frame #{}".format(frame), exc_info=True)
+            return HttpResponseBadRequest(str(e))
+
+
 
     def perform_create(self, serializer):
         if self.request.data.get('owner', None):
@@ -104,75 +174,6 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserSerializer(request.user, context={ "request": request })
         return Response(serializer.data)
 
-@login_required
-@permission_required(perm=['engine.task.access'],
-                     fn=objectgetter(models.Task, 'pk'), raise_exception=True)
-def get_frame(request, pk, frame, version=None):
-    """Stream corresponding from for the task"""
-
-    try:
-        # Follow symbol links if the frame is a link on a real image otherwise
-        # mimetype detection inside sendfile will work incorrectly.
-        path = os.path.realpath(task.get_frame_path(pk, frame))
-        return sendfile(request, path)
-    except Exception as e:
-        slogger.task[pk].error(
-            "cannot get frame #{}".format(frame), exc_info=True)
-        return HttpResponseBadRequest(str(e))
-
-@login_required
-@permission_required(perm=['engine.task.access'],
-    fn=objectgetter(models.Task, 'pk'), raise_exception=True)
-@api_view(['GET'])
-def get_image_meta_cache(request, pk, version=None):
-    try:
-        db_task = models.Task.objects.get(pk=pk)
-        meta_cache_file = open(db_task.get_image_meta_cache_path())
-    except OSError:
-        task.make_image_meta_cache(db_task)
-        meta_cache_file = open(db_task.get_image_meta_cache_path())
-
-    data = literal_eval(meta_cache_file.read())
-    serializer = ImageMetaSerializer(many=True, data=data['original_size'])
-    if serializer.is_valid(raise_exception=True):
-        return Response(serializer.data)
-
-class ClientException(APIView):
-    serializer_class = ExceptionSerializer
-    def post(self, request):
-        serializer = ExceptionSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            message = JSONRenderer().render(serializer.data)
-            jid = serializer.data["job"]
-            tid = serializer.data["task"]
-            if jid:
-                clogger.job[jid].error(message)
-            elif tid:
-                clogger.task[tid].error(message)
-            else:
-                clogger.glob.error(message)
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-class About(APIView):
-    serializer_class = AboutSerializer
-
-    def get(self, request, version=None):
-        from cvat import __version__ as cvat_version
-        about = {
-            "name": "Computer Vision Annotation Tool",
-            "version": cvat_version,
-            "description": "CVAT is completely re-designed and re-implemented " +
-                "version of Video Annotation Tool from Irvine, California " +
-                "tool. It is free, online, interactive video and image annotation " +
-                "tool for computer vision. It is being used by our team to " +
-                "annotate million of objects with different properties. Many UI " +
-                "and UX decisions are based on feedbacks from professional data " +
-                "annotation team."
-        }
-        serializer = AboutSerializer(data=about)
-        if serializer.is_valid(raise_exception=True):
-            return Response(data=serializer.data)
 
 @api_view(['GET'])
 def dummy_view(request, version=None, pk=None, frame=None, id=None, name=None):
