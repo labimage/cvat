@@ -106,6 +106,7 @@ class ClientFile(models.Model):
 
     class Meta:
         default_permissions = ()
+        unique_together = ("task", "file")
 
 # For server files on the mounted share
 class ServerFile(models.Model):
