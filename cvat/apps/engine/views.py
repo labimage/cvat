@@ -254,69 +254,6 @@ def dispatch_request(request):
     else:
         return redirect('/dashboard/')
 
-
-@login_required
-@permission_required(perm=['engine.task.create'], raise_exception=True)
-def create_task(request):
-    """Create a new annotation task"""
-
-    db_task = None
-    params = request.POST.dict()
-    params['owner'] = request.user
-    slogger.glob.info("create task with params = {}".format(params))
-    try:
-        db_task = task.create_empty(params)
-        target_paths = []
-        source_paths = []
-        upload_dir = db_task.get_upload_dirname()
-        share_root = settings.SHARE_ROOT
-        if params['storage'] == 'share':
-            data_list = request.POST.getlist('data')
-            data_list.sort(key=len)
-            for share_path in data_list:
-                relpath = os.path.normpath(share_path).lstrip('/')
-                if '..' in relpath.split(os.path.sep):
-                    raise Exception('Permission denied')
-                abspath = os.path.abspath(os.path.join(share_root, relpath))
-                if os.path.commonprefix([share_root, abspath]) != share_root:
-                    raise Exception('Bad file path on share: ' + abspath)
-                source_paths.append(abspath)
-                target_paths.append(os.path.join(upload_dir, relpath))
-        else:
-            data_list = request.FILES.getlist('data')
-
-            if len(data_list) > settings.LOCAL_LOAD_MAX_FILES_COUNT:
-                raise Exception(
-                    'Too many files. Please use download via share')
-            common_size = 0
-            for f in data_list:
-                common_size += f.size
-            if common_size > settings.LOCAL_LOAD_MAX_FILES_SIZE:
-                raise Exception('Too many size. Please use download via share')
-
-            for data_file in data_list:
-                source_paths.append(data_file.name)
-                path = os.path.join(upload_dir, data_file.name)
-                target_paths.append(path)
-                with open(path, 'wb') as upload_file:
-                    for chunk in data_file.chunks():
-                        upload_file.write(chunk)
-
-        params['SOURCE_PATHS'] = source_paths
-        params['TARGET_PATHS'] = target_paths
-
-        task.create(db_task.id, params)
-
-        return JsonResponse({'tid': db_task.id})
-    except Exception as exc:
-        slogger.glob.error("cannot create task {}".format(
-            params['task_name']), exc_info=True)
-        db_task.delete()
-        return HttpResponseBadRequest(str(exc))
-
-    return JsonResponse({'tid': db_task.id})
-
-
 @login_required
 # @permission_required(perm=['engine.task.access'],
 #    fn=objectgetter(models.Task, 'tid'), raise_exception=True)

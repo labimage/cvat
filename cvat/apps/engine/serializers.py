@@ -16,19 +16,20 @@ class AttributeSerializer(serializers.ModelSerializer):
         model = AttributeSpec
         fields = ('id', 'text')
 
+    def validate_text(self, value):
+        attr = AttributeSpec.parse(value)
+        if attr is None:
+            message = "{} attribute value isn't correct".format(value)
+            raise serializers.ValidationError(message)
+
+        return value
+
 class LabelSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, source='attributespec_set',
         default=[])
     class Meta:
         model = Label
         fields = ('id', 'name', 'attributes')
-
-    # When data is a part of multipart/form-data need to convert labels from
-    # json string to the internal representation.
-    def to_internal_value(self, data):
-        if isinstance(data, str):
-            data = json.loads(data)
-        return super().to_internal_value(data)
 
 class JobSerializer(serializers.ModelSerializer):
     task_id = serializers.ReadOnlyField(source="segment.task.id")

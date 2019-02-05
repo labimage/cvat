@@ -386,7 +386,7 @@ def _parse_labels(labels):
             parsed_labels[token] = {}
             last_label = token
         else:
-            attr = models.parse_attribute(token)
+            attr = models.AttributeSpec.parse(token)
             attr['text'] = token
             if not attr['type'] in ['checkbox', 'radio', 'number', 'text', 'select']:
                 raise ValueError("labels string is not corect. " +

@@ -139,29 +139,37 @@ class Label(models.Model):
 
     class Meta:
         default_permissions = ()
+        unique_together = ('task', 'name')
 
-
-def parse_attribute(text):
-    match = re.match(r'^([~@])(\w+)=(\w+):(.+)?$', text)
-    prefix = match.group(1)
-    type = match.group(2)
-    name = match.group(3)
-    if match.group(4):
-        values = list(csv.reader(StringIO(match.group(4)), quotechar="'"))[0]
-    else:
-        values = []
-
-    return {'prefix':prefix, 'type':type, 'name':name, 'values':values}
-
+# FIXME: need to remote text and add (name, type, permanent,
+# default_value, values)
 class AttributeSpec(models.Model):
     label = models.ForeignKey(Label, on_delete=models.CASCADE)
     text  = models.CharField(max_length=1024)
 
     class Meta:
         default_permissions = ()
+        # FIXME: unique_together = ('label', 'name')
+
+    @classmethod
+    def parse(cls, value):
+        match = re.match(r'^([~@])(\w+)=(\w+):(.+)?$', value)
+        if match:
+            prefix = match.group(1)
+            type = match.group(2)
+            name = match.group(3)
+            if match.group(4):
+                values = list(csv.reader(StringIO(match.group(4)),
+                    quotechar="'"))[0]
+            else:
+                values = []
+
+            return {'prefix':prefix, 'type':type, 'name':name, 'values':values}
+        else:
+            return None
 
     def get_attribute(self):
-        return parse_attribute(self.text)
+        return self.parse(self.text)
 
     def is_mutable(self):
         attr = self.get_attribute()
