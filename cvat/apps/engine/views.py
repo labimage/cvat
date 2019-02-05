@@ -82,6 +82,12 @@ class ServerViewSet(viewsets.ViewSet):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    # @action(detail=False, methods=['GET'], serializer_class=ShareSerializer)
+    # def share(self, request):
+    #     serializer = ShareSerializer(data=request.data)
+    #     if serializer.is_valid(raise_exception=True):
+    #         return Response(serializer.data)
+
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
