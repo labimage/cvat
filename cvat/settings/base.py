@@ -107,8 +107,12 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_VERSIONING_CLASS':
-        'cvat.apps.engine.URLPathVersioning',
-    'ALLOWED_VERSIONS': ('v1', ),
+        # Don't try to use URLPathVersioning. It will give you /api/{version}
+        # in path and '/api/docs' will not collapse similar items (flat list
+        # of all possible methods isn't readable).
+        'rest_framework.versioning.NamespaceVersioning',
+    # Need to add 'api-docs' here as a workaround for include_docs_urls.
+    'ALLOWED_VERSIONS': ('v1', 'api-docs'),
     'DEFAULT_PAGINATION_CLASS':
         'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10

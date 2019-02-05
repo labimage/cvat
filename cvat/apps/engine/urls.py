@@ -8,52 +8,18 @@ from . import views
 from rest_framework import routers
 from rest_framework.documentation import include_docs_urls
 
-REST_API_PREFIX = 'api/<version>/'
-
 router = routers.DefaultRouter(trailing_slash=False)
 router.register('tasks', views.TaskViewSet)
 router.register('jobs', views.JobViewSet)
 router.register('users', views.UserViewSet)
 router.register('', views.ServerViewSet, basename='server')
+router.register('plugins', views.PluginViewSet)
 
 urlpatterns = [
     # documentation for API
-    path('api/docs/', include_docs_urls(title='CVAT REST API')),
+    path('api/docs/', include_docs_urls(title='CVAT REST API', public=True)),
     # entry point for API
-    path(REST_API_PREFIX, include(router.urls)),
-
-    path( # GET, DELETE, PATCH, PUT
-        REST_API_PREFIX + 'tasks/<int:pk>/annotations/',
-        views.dummy_view,
-        name='task-annotations'),
-    path( # GET, DELETE, PATCH, PUT
-        REST_API_PREFIX + 'jobs/<int:pk>/annotations/',
-        views.dummy_view,
-        name='job-annotations'),
-    path( # GET
-        REST_API_PREFIX + 'plugins/',
-        views.dummy_view,
-        name='plugin-list'),
-    path( # GET, PATCH, PUT
-        REST_API_PREFIX + 'plugins/<slug:name>/config/',
-        views.dummy_view,
-        name='plugin-config'),
-    path( # GET, POST
-        REST_API_PREFIX + 'plugins/<slug:name>/data/',
-        views.dummy_view,
-        name='plugin-data-list'),
-    path( # GET, PATCH, DELETE, PUT
-        REST_API_PREFIX + 'plugins/<slug:name>/data/<int:id>',
-        views.dummy_view,
-        name='plugin-data-detail'),
-    path( # GET, POST
-        REST_API_PREFIX + 'plugins/<slug:name>/requests/',
-        views.dummy_view,
-        name='plugin-request-list'),
-    path( # GET, DELETE
-        REST_API_PREFIX + 'plugins/<slug:name>/requests/<int:id>',
-        views.dummy_view,
-        name='plugin-request-detail'),
+    path('api/v1/', include((router.urls, 'cvat'), namespace='v1')),
 
     path('delete/task/<int:tid>', views.delete_task), ####
     path('update/task/<int:tid>', views.update_task), ####

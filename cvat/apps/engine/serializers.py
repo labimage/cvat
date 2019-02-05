@@ -4,7 +4,7 @@
 
 from rest_framework import serializers
 from cvat.apps.engine.models import (Task, Job, Label, AttributeSpec,
-    Segment, ClientFile, ServerFile, RemoteFile)
+    Segment, ClientFile, ServerFile, RemoteFile, Plugin)
 
 from django.contrib.auth.models import User, Group
 import os
@@ -176,3 +176,9 @@ class AboutSerializer(serializers.Serializer):
 class ImageMetaSerializer(serializers.Serializer):
     width = serializers.IntegerField()
     height = serializers.IntegerField()
+
+class PluginSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Plugin
+        fields = ('name', 'description', 'maintainer', 'created_at',
+            'updated_at')

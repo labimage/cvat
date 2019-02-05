@@ -32,10 +32,10 @@ from cvat.apps.authentication.decorators import login_required
 from requests.exceptions import RequestException
 import logging
 from .log import slogger, clogger
-from cvat.apps.engine.models import StatusChoice, Task, Job
+from cvat.apps.engine.models import StatusChoice, Task, Job, Plugin
 from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
-   RqStatusSerializer, TaskDataSerializer)
+   RqStatusSerializer, TaskDataSerializer, PluginSerializer)
 from django.contrib.auth.models import User
 
 # Server REST API
@@ -49,7 +49,7 @@ class ServerViewSet(viewsets.ViewSet):
         return self.serializer_class(*args, **kwargs)
 
     @action(detail=False, methods=['GET'], serializer_class=AboutSerializer)
-    def about(self, request, version=None):
+    def about(self, request):
         from cvat import __version__ as cvat_version
         about = {
             "name": "Computer Vision Annotation Tool",
@@ -67,7 +67,7 @@ class ServerViewSet(viewsets.ViewSet):
             return Response(data=serializer.data)
 
     @action(detail=False, methods=['POST'], serializer_class=ExceptionSerializer)
-    def exception(self, request, version=None):
+    def exception(self, request):
         serializer = ExceptionSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             message = JSONRenderer().render(serializer.data)
@@ -88,7 +88,7 @@ class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
 
     @action(detail=True, methods=['GET'], serializer_class=JobSerializer)
-    def jobs(self, request, pk, version):
+    def jobs(self, request, pk):
         queryset = Job.objects.filter(segment__task_id=pk)
         serializer = JobSerializer(queryset, many=True,
             context={"request": request})
@@ -96,17 +96,21 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=['PUT'], serializer_class=TaskDataSerializer)
-    def data(self, request, pk, version):
+    def data(self, request, pk):
         db_task = self.get_object()
         serializer = TaskDataSerializer(db_task, data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['GET'], serializer_class=None)
+    def annotations(self, request, pk):
+        pass
+
     @action(detail=True, methods=['GET'], serializer_class=RqStatusSerializer)
-    def status(self, request, pk, version):
+    def status(self, request, pk):
         response = self._get_rq_response(queue="default",
-            job_id="/api/{}/tasks/{}".format(version, pk))
+            job_id="/api/{}/tasks/{}".format(request.version, pk))
         serializer = RqStatusSerializer(data=response)
 
         if serializer.is_valid(raise_exception=True):
@@ -131,7 +135,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['GET'], serializer_class=ImageMetaSerializer,
         url_path='frames/meta')
-    def data_info(self, request, pk, version=None):
+    def data_info(self, request, pk):
         try:
             db_task = models.Task.objects.get(pk=pk)
             meta_cache_file = open(db_task.get_image_meta_cache_path())
@@ -146,7 +150,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['GET'], serializer_class=None,
         url_path='frames/(?P<frame>\d+)')
-    def frame(self, request, pk, frame, version=None):
+    def frame(self, request, pk, frame):
         """Get a frame for the task"""
 
         try:
@@ -173,19 +177,48 @@ class JobViewSet(viewsets.GenericViewSet,
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
-class UserViewSet(viewsets.ModelViewSet):
+    @action(detail=True, methods=['GET'], serializer_class=None)
+    def annotations(self, request, pk):
+        pass
+
+
+class UserViewSet(viewsets.GenericViewSet,
+    mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
     @action(detail=False, methods=['GET'], serializer_class=UserSerializer)
-    def self(self, request, version):
+    def self(self, request):
         serializer = UserSerializer(request.user, context={ "request": request })
         return Response(serializer.data)
 
+class PluginViewSet(viewsets.ModelViewSet):
+    queryset = Plugin.objects.all()
+    serializer_class = PluginSerializer
 
-@api_view(['GET'])
-def dummy_view(request, version=None, pk=None, frame=None, id=None, name=None):
-    return Response()
+    # @action(detail=True, methods=['GET', 'PATCH', 'PUT'], serializer_class=None)
+    # def config(self, request, name):
+    #     pass
+
+    # @action(detail=True, methods=['GET', 'POST'], serializer_class=None)
+    # def data(self, request, name):
+    #     pass
+
+    # @action(detail=True, methods=['GET', 'DELETE', 'PATCH', 'PUT'],
+    #     serializer_class=None, url_path='data/(?P<id>\d+)')
+    # def data_detail(self, request, name, id):
+    #     pass
+
+
+    @action(detail=True, methods=['GET', 'POST'], serializer_class=RqStatusSerializer)
+    def requests(self, request, name):
+        pass
+
+    @action(detail=True, methods=['GET', 'DELETE'],
+        serializer_class=RqStatusSerializer, url_path='requests/(?P<id>\d+)')
+    def request_detail(self, request, name, id):
+        pass
+
 
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
