@@ -60,6 +60,13 @@ class ClientFileSerializer(serializers.ModelSerializer):
         model = ClientFile
         fields = ('file', )
 
+    def to_internal_value(self, data):
+        return {'file': data}
+
+    def to_representation(self, instance):
+        upload_dir = instance.task.get_upload_dirname()
+        return instance.file.path[len(upload_dir) + 1:]
+
 class ServerFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServerFile

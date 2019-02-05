@@ -84,6 +84,17 @@ class Task(models.Model):
     def __str__(self):
         return self.name
 
+# Redefined a couple of operation for FileSystemStorage to avoid renaming
+# or other side effects.
+class MyFileSystemStorage(FileSystemStorage):
+    def get_valid_name(self, name):
+        return name
+
+    def get_available_name(self, name, max_length=None):
+        if self.exists(name) or (max_length and len(name) > max_length):
+            raise IOError('`{}` file already exists or its name is too long'.format(name))
+        return name
+
 def upload_path_handler(instance, filename):
     return os.path.join(instance.task.get_upload_dirname(), filename)
 
@@ -91,7 +102,7 @@ def upload_path_handler(instance, filename):
 class ClientFile(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     file = models.FileField(upload_to=upload_path_handler,
-        storage=FileSystemStorage())
+        storage=MyFileSystemStorage())
 
     class Meta:
         default_permissions = ()
