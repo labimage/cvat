@@ -7,6 +7,7 @@ import os
 import json
 import traceback
 from ast import literal_eval
+import shutil
 
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render, get_object_or_404
@@ -93,8 +94,10 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
-    def get_serializer_class(self):
-        return self.serializer_class
+    def perform_destroy(self, instance):
+        task_dirname = instance.get_task_dirname()
+        super().perform_destroy(instance)
+        shutil.rmtree(task_dirname, ignore_errors=True)
 
     @action(detail=True, methods=['GET'], serializer_class=JobSerializer)
     def jobs(self, request, pk):
