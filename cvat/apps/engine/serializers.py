@@ -18,7 +18,9 @@ class AttributeSerializer(serializers.ModelSerializer):
             'values')
 
     def to_internal_value(self, data):
-        data['values'] = '\n'.join(data['values'])
+        attribute = data.copy()
+        attribute['values'] = '\n'.join(data['values'])
+        return attribute
 
     def to_representation(self, instance):
         attribute = super().to_representation(instance)
@@ -115,8 +117,52 @@ class TaskDataSerializer(serializers.ModelSerializer):
 
         return instance
 
+class WriteOnceMixin:
+    """Adds support for write once fields to serializers.
 
-class TaskSerializer(serializers.ModelSerializer):
+    To use it, specify a list of fields as `write_once_fields` on the
+    serializer's Meta:
+    ```
+    class Meta:
+        model = SomeModel
+        fields = '__all__'
+        write_once_fields = ('collection', )
+    ```
+
+    Now the fields in `write_once_fields` can be set during POST (create),
+    but cannot be changed afterwards via PUT or PATCH (update).
+    Inspired by http://stackoverflow.com/a/37487134/627411.
+    """
+
+    def get_extra_kwargs(self):
+        extra_kwargs = super().get_extra_kwargs()
+
+        # We're only interested in PATCH/PUT.
+        if 'update' in getattr(self.context.get('view'), 'action', ''):
+            return self._set_write_once_fields(extra_kwargs)
+
+        return extra_kwargs
+
+    def _set_write_once_fields(self, extra_kwargs):
+        """Set all fields in `Meta.write_once_fields` to read_only."""
+        write_once_fields = getattr(self.Meta, 'write_once_fields', None)
+        if not write_once_fields:
+            return extra_kwargs
+
+        if not isinstance(write_once_fields, (list, tuple)):
+            raise TypeError(
+                'The `write_once_fields` option must be a list or tuple. '
+                'Got {}.'.format(type(write_once_fields).__name__)
+            )
+
+        for field_name in write_once_fields:
+            kwargs = extra_kwargs.get(field_name, {})
+            kwargs['read_only'] = True
+            extra_kwargs[field_name] = kwargs
+
+        return extra_kwargs
+
+class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
     labels = LabelSerializer(many=True, source='label_set', partial=True)
     segments = SegmentSerializer(many=True, source='segment_set', read_only=True)
     image_quality = serializers.IntegerField(min_value=0, max_value=100,
@@ -129,13 +175,12 @@ class TaskSerializer(serializers.ModelSerializer):
             'segment_size', 'z_order', 'flipped', 'status', 'labels', 'segments',
             'image_quality')
         read_only_fields = ('size', 'mode', 'created_date', 'updated_date',
-            'overlap', 'status', 'segment_size')
+            'status')
+        write_once_fields = ('overlap', 'segment_size')
         ordering = ['-id']
 
     def create(self, validated_data):
         labels = validated_data.pop('label_set')
-        if not validated_data.get('segment_size'):
-            validated_data['segment_size'] = 0
         db_task = Task.objects.create(size=0, **validated_data)
         for label in labels:
             attributes = label.pop('attributespec_set')
@@ -153,6 +198,30 @@ class TaskSerializer(serializers.ModelSerializer):
         os.makedirs(output_dir)
 
         return db_task
+
+    def update(self, instance, validated_data):
+        instance.name = validated_data.get('name', instance.name)
+        instance.owner = validated_data.get('owner', instance.owner)
+        instance.assignee = validated_data.get('assignee', instance.assignee)
+        instance.bug_tracker = validated_data.get('bug_tracker',
+            instance.bug_tracker)
+        instance.z_order = validated_data.get('z_order', instance.z_order)
+        instance.flipped = validated_data.get('flipped', instance.flipped)
+        instance.image_quality = validated_data.get('image_quality',
+            instance.image_quality)
+        labels = validated_data.get('label_set')
+        for label in labels:
+            attributes = label.pop('attributespec_set')
+            (db_label, _) = Label.objects.get_or_create(task=instance, **label)
+            for attr in attributes:
+                (db_attr, created) = AttributeSpec.objects.get_or_create(
+                    label=db_label, **attr)
+
+
+
+
+        return instance
+
 
 class UserSerializer(serializers.ModelSerializer):
     groups = serializers.SlugRelatedField(many=True,

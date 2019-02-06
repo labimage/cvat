@@ -13,6 +13,7 @@ from enum import Enum
 import shlex
 import csv
 import os
+import sys
 
 
 class StatusChoice(str, Enum):
@@ -55,7 +56,7 @@ class Task(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now_add=True)
     overlap = models.PositiveIntegerField(default=0)
-    segment_size = models.PositiveIntegerField()
+    segment_size = models.PositiveIntegerField(default=0)
     z_order = models.BooleanField(default=False)
     flipped = models.BooleanField(default=False)
     image_quality = models.PositiveSmallIntegerField()

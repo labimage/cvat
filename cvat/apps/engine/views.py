@@ -93,6 +93,9 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
+    def get_serializer_class(self):
+        return self.serializer_class
+
     @action(detail=True, methods=['GET'], serializer_class=JobSerializer)
     def jobs(self, request, pk):
         queryset = Job.objects.filter(segment__task_id=pk)
