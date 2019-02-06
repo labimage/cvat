@@ -14,15 +14,17 @@ import json
 class AttributeSerializer(serializers.ModelSerializer):
     class Meta:
         model = AttributeSpec
-        fields = ('id', 'text')
+        fields = ('id', 'name', 'mutable', 'input_type', 'default_value',
+            'values')
 
-    def validate_text(self, value):
-        attr = AttributeSpec.parse(value)
-        if attr is None:
-            message = "{} attribute value isn't correct".format(value)
-            raise serializers.ValidationError(message)
+    def to_internal_value(self, data):
+        data['values'] = '\n'.join(data['values'])
 
-        return value
+    def to_representation(self, instance):
+        attribute = super().to_representation(instance)
+        attribute['values'] = attribute['values'].split('\n')
+        return attribute
+
 
 class LabelSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, source='attributespec_set',

@@ -8,14 +8,11 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.storage import FileSystemStorage
 
-from io import StringIO
 from enum import Enum
 
 import shlex
 import csv
-import re
 import os
-import sys
 
 
 class StatusChoice(str, Enum):
@@ -26,6 +23,18 @@ class StatusChoice(str, Enum):
     @classmethod
     def choices(self):
         return tuple((x.name, x.value) for x in self)
+
+class AttributeType(str, Enum):
+    CHECKBOX = 'checkbox'
+    RADIO = 'radio'
+    NUMBER = 'number'
+    TEXT = 'text'
+    SELECT = 'select'
+
+    @classmethod
+    def choices(self):
+        return tuple((x.name, x.value) for x in self)
+
 
 class SafeCharField(models.CharField):
     def get_prep_value(self, value):
@@ -50,8 +59,6 @@ class Task(models.Model):
     z_order = models.BooleanField(default=False)
     flipped = models.BooleanField(default=False)
     image_quality = models.PositiveSmallIntegerField()
-    # FIXME: remote source field
-    source = SafeCharField(max_length=256, default="unknown")
     status = models.CharField(max_length=32, choices=StatusChoice.choices(),
         default=StatusChoice.ANNOTATION)
 
@@ -136,7 +143,8 @@ class Segment(models.Model):
 class Job(models.Model):
     segment = models.ForeignKey(Segment, on_delete=models.CASCADE)
     assignee = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
-    status = models.CharField(max_length=32, default=StatusChoice.ANNOTATION)
+    status = models.CharField(max_length=32, choices=StatusChoice.choices(),
+        default=StatusChoice.ANNOTATION)
     max_shape_id = models.BigIntegerField(default=-1)
 
     class Meta:
@@ -153,58 +161,21 @@ class Label(models.Model):
         default_permissions = ()
         unique_together = ('task', 'name')
 
-# FIXME: need to remote text and add (name, type, permanent,
-# default_value, values)
+
 class AttributeSpec(models.Model):
     label = models.ForeignKey(Label, on_delete=models.CASCADE)
-    text  = models.CharField(max_length=1024)
+    name = models.CharField(max_length=64)
+    mutable = models.BooleanField()
+    input_type = models.CharField(max_length=16, choices=AttributeType.choices())
+    default_value = models.CharField(max_length=128)
+    values = models.CharField(max_length=4096)
 
     class Meta:
         default_permissions = ()
-        # FIXME: unique_together = ('label', 'name')
-
-    @classmethod
-    def parse(cls, value):
-        match = re.match(r'^([~@])(\w+)=(\w+):(.+)?$', value)
-        if match:
-            prefix = match.group(1)
-            type = match.group(2)
-            name = match.group(3)
-            if match.group(4):
-                values = list(csv.reader(StringIO(match.group(4)),
-                    quotechar="'"))[0]
-            else:
-                values = []
-
-            return {'prefix':prefix, 'type':type, 'name':name, 'values':values}
-        else:
-            return None
-
-    def get_attribute(self):
-        return self.parse(self.text)
-
-    def is_mutable(self):
-        attr = self.get_attribute()
-        return attr['prefix'] == '~'
-
-    def get_type(self):
-        attr = self.get_attribute()
-        return attr['type']
-
-    def get_name(self):
-        attr = self.get_attribute()
-        return attr['name']
-
-    def get_default_value(self):
-        attr = self.get_attribute()
-        return attr['values'][0]
-
-    def get_values(self):
-        attr = self.get_attribute()
-        return attr['values']
+        unique_together = ('label', 'name')
 
     def __str__(self):
-        return self.get_attribute()['name']
+        return self.name
 
 
 class AttributeVal(models.Model):

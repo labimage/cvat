@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CVAT Server",
+            "name": "Server",
             "type": "python",
             "request": "launch",
             "stopOnEntry": false,
@@ -22,7 +22,7 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "CVAT Client",
+            "name": "Client",
             "type": "chrome",
             "request": "launch",
             "url": "http://localhost:7000/",
@@ -35,7 +35,7 @@
             }
         },
         {
-            "name": "CVAT RQ - default",
+            "name": "RQ - default",
             "type": "python",
             "request": "launch",
             "stopOnEntry": false,
@@ -53,7 +53,7 @@
             "env": {}
         },
         {
-            "name": "CVAT RQ - low",
+            "name": "RQ - low",
             "type": "python",
             "request": "launch",
             "debugStdLib": true,
@@ -71,7 +71,7 @@
             "env": {}
         },
         {
-            "name": "CVAT git",
+            "name": "git",
             "type": "python",
             "request": "launch",
             "debugStdLib": true,
@@ -85,16 +85,31 @@
             "cwd": "${workspaceFolder}",
             "env": {}
         },
+        {
+            "name": "migrate",
+            "type": "python",
+            "request": "launch",
+            "debugStdLib": true,
+            "stopOnEntry": false,
+            "pythonPath": "${config:python.pythonPath}",
+            "program": "${workspaceRoot}/manage.py",
+            "args": [
+                "migrate"
+            ],
+            "django": true,
+            "cwd": "${workspaceFolder}",
+            "env": {}
+        },
     ],
     "compounds": [
         {
-            "name": "CVAT Debugging",
+            "name": "Debugging",
             "configurations": [
-                "CVAT Client",
-                "CVAT Server",
-                "CVAT RQ - default",
-                "CVAT RQ - low",
-                "CVAT git",
+                "Client",
+                "Server",
+                "RQ - default",
+                "RQ - low",
+                "git",
             ]
         }
     ]
