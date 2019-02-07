@@ -115,6 +115,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    #@action(detail=True, methods=['GET', 'DELETE', 'POST'], serializer_class=None)
     @action(detail=True, methods=['GET'], serializer_class=None)
     def annotations(self, request, pk):
         pass
@@ -189,6 +190,7 @@ class JobViewSet(viewsets.GenericViewSet,
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
+    #@action(detail=True, methods=['GET', 'DELETE', 'POST'], serializer_class=None)
     @action(detail=True, methods=['GET'], serializer_class=None)
     def annotations(self, request, pk):
         pass

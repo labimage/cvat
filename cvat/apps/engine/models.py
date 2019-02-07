@@ -191,6 +191,7 @@ class AttributeVal(models.Model):
 
 
 class Annotation(models.Model):
+    id = models.BigAutoField(primary_key=True)
     job   = models.ForeignKey(Job, on_delete=models.CASCADE)
     label = models.ForeignKey(Label, on_delete=models.CASCADE)
     frame = models.PositiveIntegerField()
@@ -209,7 +210,6 @@ class Shape(models.Model):
         default_permissions = ()
 
 class BoundingBox(Shape):
-    id = models.BigAutoField(primary_key=True)
     xtl = models.FloatField()
     ytl = models.FloatField()
     xbr = models.FloatField()
@@ -220,7 +220,6 @@ class BoundingBox(Shape):
         default_permissions = ()
 
 class PolyShape(Shape):
-    id = models.BigAutoField(primary_key=True)
     points = models.TextField()
 
     class Meta:
@@ -252,13 +251,13 @@ class LabeledPointsAttributeVal(AttributeVal):
     points = models.ForeignKey(LabeledPoints, on_delete=models.CASCADE)
 
 class ObjectPath(Annotation):
-    id = models.BigAutoField(primary_key=True)
     shapes = models.CharField(max_length=10, default='boxes')
 
 class ObjectPathAttributeVal(AttributeVal):
     track = models.ForeignKey(ObjectPath, on_delete=models.CASCADE)
 
 class TrackedObject(models.Model):
+    id = models.BigAutoField(primary_key=True)
     track = models.ForeignKey(ObjectPath, on_delete=models.CASCADE)
     frame = models.PositiveIntegerField()
     outside = models.BooleanField(default=False)
