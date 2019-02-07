@@ -194,7 +194,7 @@ class JobViewSet(viewsets.GenericViewSet,
         pass
 
 
-class UserViewSet(viewsets.GenericViewSet,
+class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = User.objects.all()
     serializer_class = UserSerializer

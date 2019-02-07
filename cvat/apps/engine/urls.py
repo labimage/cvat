@@ -12,7 +12,7 @@ router = routers.DefaultRouter(trailing_slash=False)
 router.register('tasks', views.TaskViewSet)
 router.register('jobs', views.JobViewSet)
 router.register('users', views.UserViewSet)
-router.register('', views.ServerViewSet, basename='server')
+router.register('server', views.ServerViewSet, basename='server')
 router.register('plugins', views.PluginViewSet)
 
 urlpatterns = [

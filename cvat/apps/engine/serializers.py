@@ -258,16 +258,19 @@ class UserSerializer(serializers.ModelSerializer):
         write_only_fields = ('password', )
 
 class ExceptionSerializer(serializers.Serializer):
-    task = serializers.IntegerField()
-    job = serializers.IntegerField()
-    message = serializers.CharField(max_length=1000)
+    system = serializers.CharField(max_length=255)
+    client = serializers.CharField(max_length=255)
+
+    task = serializers.IntegerField(allow_null=True)
+    job = serializers.IntegerField(allow_null=True)
+
+    message = serializers.CharField(max_length=4096)
     filename = serializers.URLField()
     line = serializers.IntegerField()
     column = serializers.IntegerField()
-    stack = serializers.CharField(max_length=10000,
-        style={'base_template': 'textarea.html'})
-    browser = serializers.CharField(max_length=255)
-    os = serializers.CharField(max_length=255)
+    stack = serializers.CharField(max_length=8192,
+        style={'base_template': 'textarea.html'}, allow_null=True)
+
 
 class AboutSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
