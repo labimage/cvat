@@ -27,7 +27,7 @@ urlpatterns = [
     #path('create/task', views.create_task),
     #path('get/task/<int:tid>/frame/<int:frame>', views.get_frame),
     path('check/task/<int:tid>', views.check_task),
-    path('delete/task/<int:tid>', views.delete_task),
+    #path('delete/task/<int:tid>', views.delete_task),
     path('update/task/<int:tid>', views.update_task),
     path('get/job/<int:jid>', views.get_job),
     path('get/task/<int:tid>', views.get_task),

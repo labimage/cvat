@@ -38,6 +38,8 @@ from cvat.apps.engine.serializers import (TaskSerializer, UserSerializer,
    ExceptionSerializer, AboutSerializer, JobSerializer, ImageMetaSerializer,
    RqStatusSerializer, TaskDataSerializer, PluginSerializer)
 from django.contrib.auth.models import User
+from cvat.apps.authentication import auth
+from rest_framework.permissions import SAFE_METHODS
 
 # Server REST API
 
@@ -93,6 +95,29 @@ class ServerViewSet(viewsets.ViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+
+    def get_permissions(self):
+        http_method = self.request.method
+        permissions = [auth.IsAuthenticated]
+
+        if http_method in auth.SAFE_METHODS:
+            permissions.append(auth.TaskAccessPermission)
+        elif http_method in ["POST"]:
+            permissions.append(auth.TaskCreatePermission)
+        elif http_method in ["PATCH", "PUT"]:
+            permissions.append(auth.TaskChangePermission)
+        elif http_method in ["DELETE"]:
+            permissions.append(auth.TaskDeletePermission)
+        else:
+            permissions.append(auth.AdminRolePermission)
+
+        return [perm() for perm in permissions]
+
+    def perform_create(self, serializer):
+        if self.request.data.get('owner', None):
+            serializer.save()
+        else:
+            serializer.save(owner=self.request.user)
 
     def perform_destroy(self, instance):
         task_dirname = instance.get_task_dirname()
@@ -177,18 +202,23 @@ class TaskViewSet(viewsets.ModelViewSet):
             return HttpResponseBadRequest(str(e))
 
 
-
-    def perform_create(self, serializer):
-        if self.request.data.get('owner', None):
-            serializer.save()
-        else:
-            serializer.save(owner=self.request.user)
-
-
 class JobViewSet(viewsets.GenericViewSet,
     mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
+
+    def get_permissions(self):
+        http_method = self.request.method
+        permissions = [auth.IsAuthenticated]
+
+        if http_method in SAFE_METHODS:
+            permissions.append(auth.JobAccessPermission)
+        elif http_method in ["PATCH", "PUT"]:
+            permissions.append(auth.JobChangePermission)
+        else:
+            permissions.append(auth.AdminRolePermission)
+
+        return [perm() for perm in permissions]
 
     #@action(detail=True, methods=['GET', 'DELETE', 'POST'], serializer_class=None)
     @action(detail=True, methods=['GET'], serializer_class=None)
@@ -200,6 +230,17 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    def get_permissions(self):
+        http_method = self.request.method
+        permissions = [auth.IsAuthenticated]
+
+        if self.action in ["self"]:
+            pass
+        else:
+            permissions.append(auth.AdminRolePermission)
+
+        return [perm() for perm in permissions]
 
     @action(detail=False, methods=['GET'], serializer_class=UserSerializer)
     def self(self, request):
