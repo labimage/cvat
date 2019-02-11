@@ -223,3 +223,82 @@ class JobPartialUpdateAPITestCase(JobUpdateAPITestCase):
         data = {"assignee": self.user.id}
         response = self._run_api_v1_jobs_id(self.job.id, self.owner, data)
         self._check_request(response, data)
+
+class ServerAboutAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        createUsers(cls)
+
+    def _run_api_v1_server_about(self, user):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.get('/api/v1/server/about')
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def _check_request(self, response):
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNotNone(response.data.get("name", None))
+        self.assertIsNotNone(response.data.get("description", None))
+        self.assertIsNotNone(response.data.get("version", None))
+
+    def test_api_v1_server_about_admin(self):
+        response = self._run_api_v1_server_about(self.admin)
+        self._check_request(response)
+
+    def test_api_v1_server_about_user(self):
+        response = self._run_api_v1_server_about(self.user)
+        self._check_request(response)
+
+    def test_api_v1_server_about_no_auth(self):
+        response = self._run_api_v1_server_about(None)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class ServerExceptionAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        createUsers(cls)
+        cls.data = {
+            "system": "Linux",
+            "client": "rest_framework.APIClient",
+            "task": None,
+            "job": None,
+            "message": "just test message",
+            "filename": "http://localhost/my_file.js",
+            "line": 1,
+            "column": 1,
+            "stack": None
+        }
+
+    def _run_api_v1_server_exception(self, user):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.post('/api/v1/server/exception', self.data, format='json')
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def test_api_v1_server_exception_admin(self):
+        response = self._run_api_v1_server_exception(self.admin)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_api_v1_server_exception_user(self):
+        response = self._run_api_v1_server_exception(self.user)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_api_v1_server_exception_no_auth(self):
+        response = self._run_api_v1_server_exception(None)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
