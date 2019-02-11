@@ -23,7 +23,10 @@ class StatusChoice(str, Enum):
 
     @classmethod
     def choices(self):
-        return tuple((x.name, x.value) for x in self)
+        return tuple((x.value, x.name) for x in self)
+
+    def __str__(self):
+        return self.value
 
 class AttributeType(str, Enum):
     CHECKBOX = 'checkbox'
@@ -34,7 +37,10 @@ class AttributeType(str, Enum):
 
     @classmethod
     def choices(self):
-        return tuple((x.name, x.value) for x in self)
+        return tuple((x.value, x.name) for x in self)
+
+    def __str__(self):
+        return self.value
 
 
 class SafeCharField(models.CharField):

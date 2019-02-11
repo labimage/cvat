@@ -100,6 +100,22 @@
             "cwd": "${workspaceFolder}",
             "env": {}
         },
+        {
+            "name": "tests",
+            "type": "python",
+            "request": "launch",
+            "debugStdLib": true,
+            "stopOnEntry": false,
+            "pythonPath": "${config:python.pythonPath}",
+            "program": "${workspaceRoot}/manage.py",
+            "args": [
+                "test",
+                "cvat/apps/engine"
+            ],
+            "django": true,
+            "cwd": "${workspaceFolder}",
+            "env": {}
+        },
     ],
     "compounds": [
         {

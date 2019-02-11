@@ -100,7 +100,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         http_method = self.request.method
         permissions = [auth.IsAuthenticated]
 
-        if http_method in auth.SAFE_METHODS:
+        if http_method in SAFE_METHODS:
             permissions.append(auth.TaskAccessPermission)
         elif http_method in ["POST"]:
             permissions.append(auth.TaskCreatePermission)
