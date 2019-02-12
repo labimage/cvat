@@ -238,10 +238,6 @@ class TaskSerializer(WriteOnceMixin, serializers.ModelSerializer):
                     db_attr.values = attr.get('values', db_attr.values)
                     db_attr.save()
 
-
-
-
-
         return instance
 
 

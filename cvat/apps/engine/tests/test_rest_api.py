@@ -504,3 +504,4 @@ class UserPartialUpdateAPITestCase(UserUpdateAPITestCase):
         data = {"username": "user12"}
         response = self._run_api_v1_users_id(None, self.user.id, data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
