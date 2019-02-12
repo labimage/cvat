@@ -256,6 +256,7 @@ class UserSerializer(serializers.ModelSerializer):
             'date_joined', 'groups')
         read_only_fields = ('last_login', 'date_joined')
         write_only_fields = ('password', )
+        ordering = ['-id']
 
 class ExceptionSerializer(serializers.Serializer):
     system = serializers.CharField(max_length=255)

@@ -232,13 +232,14 @@ class UserViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
     serializer_class = UserSerializer
 
     def get_permissions(self):
-        http_method = self.request.method
         permissions = [auth.IsAuthenticated]
 
         if self.action in ["self"]:
             pass
         else:
-            permissions.append(auth.AdminRolePermission)
+            user = self.request.user
+            if self.action != "retrieve" or int(self.kwargs["pk"]) != user.id:
+                permissions.append(auth.AdminRolePermission)
 
         return [perm() for perm in permissions]
 

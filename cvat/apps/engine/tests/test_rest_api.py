@@ -302,3 +302,205 @@ class ServerExceptionAPITestCase(APITestCase):
     def test_api_v1_server_exception_no_auth(self):
         response = self._run_api_v1_server_exception(None)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class UserListAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        createUsers(cls)
+
+    def _run_api_v1_users(self, user):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.get('/api/v1/users')
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def test_api_v1_users_admin(self):
+        response = self._run_api_v1_users(self.admin)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertListEqual(
+            ["admin", "user1", "user2", "user3", "user4", "user5"],
+            [res["username"] for res in response.data["results"]])
+
+    def test_api_v1_users_user(self):
+        response = self._run_api_v1_users(self.user)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_no_auth(self):
+        response = self._run_api_v1_users(None)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class UserSelfAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        createUsers(cls)
+
+    def _run_api_v1_users_self(self, user):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.get('/api/v1/users/self')
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def _check_response(self, user, response):
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], user.username)
+
+    def test_api_v1_users_self_admin(self):
+        response = self._run_api_v1_users_self(self.admin)
+        self._check_response(self.admin, response)
+
+    def test_api_v1_users_self_user(self):
+        response = self._run_api_v1_users_self(self.user)
+        self._check_response(self.user, response)
+
+    def test_api_v1_users_self_annotator(self):
+        response = self._run_api_v1_users_self(self.annotator)
+        self._check_response(self.annotator, response)
+
+
+    def test_api_v1_users_self_no_auth(self):
+        response = self._run_api_v1_users_self(None)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class UserGetAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    @classmethod
+    def setUpTestData(cls):
+        createUsers(cls)
+
+    def _run_api_v1_users_id(self, user, id):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.get('/api/v1/users/{}'.format(id))
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def _check_response(self, user, response):
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], user.id)
+        self.assertEqual(response.data["username"], user.username)
+
+    def test_api_v1_users_id_admin(self):
+        response = self._run_api_v1_users_id(self.admin, self.user.id)
+        self._check_response(self.user, response)
+
+        response = self._run_api_v1_users_id(self.admin, self.admin.id)
+        self._check_response(self.admin, response)
+
+        response = self._run_api_v1_users_id(self.admin, self.owner.id)
+        self._check_response(self.owner, response)
+
+    def test_api_v1_users_id_user(self):
+        response = self._run_api_v1_users_id(self.user, self.user.id)
+        self._check_response(self.user, response)
+
+        response = self._run_api_v1_users_id(self.user, self.owner.id)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_id_annotator(self):
+        response = self._run_api_v1_users_id(self.annotator, self.annotator.id)
+        self._check_response(self.annotator, response)
+
+        response = self._run_api_v1_users_id(self.annotator, self.user.id)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_id_no_auth(self):
+        response = self._run_api_v1_users_id(None, self.user.id)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class UserUpdateAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        createUsers(self)
+
+    def _run_api_v1_users_id(self, user, id, data):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.put('/api/v1/users/{}'.format(id), data=data)
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def test_api_v1_users_id_admin(self):
+        data = {"username": "user09", "groups": ["user", "admin"],
+            "first_name": "my name"}
+        response = self._run_api_v1_users_id(self.admin, self.user.id, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user09 = User.objects.get(id=self.user.id)
+        self.assertEqual(user09.username, data["username"])
+        self.assertEqual(user09.first_name, data["first_name"])
+
+    def test_api_v1_users_id_user(self):
+        data = {"username": "user10", "groups": ["user", "annotator"],
+            "first_name": "my name"}
+        response = self._run_api_v1_users_id(self.user, self.user.id, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_id_annotator(self):
+        data = {"username": "user11", "groups": ["annotator"],
+            "first_name": "my name"}
+        response = self._run_api_v1_users_id(self.annotator, self.user.id, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_id_no_auth(self):
+        data = {"username": "user12", "groups": ["user", "observer"],
+            "first_name": "my name"}
+        response = self._run_api_v1_users_id(None, self.user.id, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+class UserPartialUpdateAPITestCase(UserUpdateAPITestCase):
+    def _run_api_v1_users_id(self, user, id, data):
+        if user:
+            self.client.force_login(user, backend='django.contrib.auth.backends.ModelBackend')
+
+        response = self.client.patch('/api/v1/users/{}'.format(id), data=data)
+
+        if user:
+            self.client.logout()
+
+        return response
+
+    def test_api_v1_users_id_admin_partial(self):
+        data = {"username": "user09", "last_name": "my last name"}
+        response = self._run_api_v1_users_id(self.admin, self.user.id, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user09 = User.objects.get(id=self.user.id)
+        self.assertEqual(user09.username, data["username"])
+        self.assertEqual(user09.last_name, data["last_name"])
+
+    def test_api_v1_users_id_user_partial(self):
+        data = {"username": "user10", "first_name": "my name"}
+        response = self._run_api_v1_users_id(self.user, self.user.id, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_api_v1_users_id_no_auth_partial(self):
+        data = {"username": "user12"}
+        response = self._run_api_v1_users_id(None, self.user.id, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
