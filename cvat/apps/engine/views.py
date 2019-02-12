@@ -149,7 +149,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer = TaskDataSerializer(db_task, data=request.data)
         if serializer.is_valid(raise_exception=True):
             serializer.save()
-            task.create(db_task, serializer.data)
+            task.create(db_task.id, serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     #@action(detail=True, methods=['GET', 'DELETE', 'POST'], serializer_class=None)

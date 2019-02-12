@@ -34,13 +34,11 @@ from .log import slogger
 
 ############################# Low Level server API
 
-
-def create(tid, params):
+def create(tid, data):
     """Schedule the task"""
     q = django_rq.get_queue('default')
-    q.enqueue_call(func=_create_thread, args=(tid, params),
+    q.enqueue_call(func=_create_thread, args=(tid, data),
         job_id="/api/v1/tasks/{}".format(tid))
-
 
 def get_frame_path(tid, frame):
     """Read corresponding frame for the task"""
@@ -243,7 +241,7 @@ def _valid_file_set(counters):
 '''
     Copy data from share to local
 '''
-def _copy_data_from_share(share_files_mapping, share_dirs_mapping):
+def _copy_data_from_share(share_data):
     for source_path in share_dirs_mapping:
         copy_tree(source_path, share_dirs_mapping[source_path])
     for source_path in share_files_mapping:
@@ -345,13 +343,6 @@ def _find_and_compress_images(upload_dir, output_dir, db_task, compress_quality,
     return filenames
 
 def _save_task_to_db(db_task, task_params):
-    db_task.overlap = min(db_task.size, task_params['overlap'])
-    db_task.mode = task_params['mode']
-    db_task.z_order = task_params['z_order']
-    db_task.flipped = task_params['flip']
-    db_task.source = task_params['data']
-    db_task.segment_size = min(db_task.size, task_params['segment'])
-
     segment_step = task_params['segment'] - db_task.overlap
     for x in range(0, db_task.size, segment_step):
         start_frame = x
@@ -369,25 +360,11 @@ def _save_task_to_db(db_task, task_params):
         db_job.segment = db_segment
         db_job.save()
 
-    parsed_labels = _parse_labels(task_params['labels'])
-    for label in parsed_labels:
-        db_label = models.Label()
-        db_label.task = db_task
-        db_label.name = label
-        db_label.save()
-
-        for attr in parsed_labels[label]:
-            db_attrspec = models.AttributeSpec()
-            db_attrspec.label = db_label
-            db_attrspec.text = parsed_labels[label][attr]['text']
-            db_attrspec.save()
-
     db_task.save()
 
 
-@plugin_decorator
 @transaction.atomic
-def _create_thread(tid, params):
+def _create_thread(tid, data):
     slogger.glob.info("create task #{}".format(tid))
     job = rq.get_current_job()
 
@@ -395,15 +372,19 @@ def _create_thread(tid, params):
     upload_dir = db_task.get_upload_dirname()
     output_dir = db_task.get_data_dirname()
 
-    counters, share_dirs_mapping, share_files_mapping = _prepare_paths(
-        params['SOURCE_PATHS'],
-        params['TARGET_PATHS'],
-        params['storage']
-    )
+    # Validate that uploaded files are OK (number of images, videos, archives)
+
+
+    # counters, share_dirs_mapping, share_files_mapping = _prepare_paths(
+    #     params['SOURCE_PATHS'],
+    #     params['TARGET_PATHS'],
+    #     params['storage']
+    # )
 
     if (not _valid_file_set(counters)):
-        raise Exception('Only one archive, one video or many images can be dowloaded simultaneously. \
-            {} image(s), {} dir(s), {} video(s), {} archive(s) found'.format(
+        raise ValueError('Only one archive, one video or many images can be \
+            dowloaded simultaneously. {} image(s), {} dir(s), {} video(s), {} \
+            archive(s) found'.format(
                 counters['image'],
                 counters['directory'],
                 counters['video'],
@@ -411,10 +392,10 @@ def _create_thread(tid, params):
             )
         )
 
-    if params['storage'] == 'share':
+    if data['server_files']:
         job.meta['status'] = 'Data are being copied from share..'
         job.save_meta()
-        _copy_data_from_share(share_files_mapping, share_dirs_mapping)
+        #_copy_data_from_share(data['server_files'])
 
     archive = None
     if counters['archive']:
@@ -425,15 +406,7 @@ def _create_thread(tid, params):
     # Define task mode and other parameters
     task_params = {
         'mode': 'annotation' if counters['image'] or counters['directory'] or counters['archive'] else 'interpolation',
-        'flip': params['flip_flag'].lower() == 'true',
-        'z_order': params['z_order'].lower() == 'true',
-        'compress': int(params.get('compress_quality', 50)),
-        'segment': int(params.get('segment_size', sys.maxsize)),
-        'labels': params['labels'],
     }
-    task_params['overlap'] = int(params.get('overlap_size', 5 if task_params['mode'] == 'interpolation' else 0))
-    task_params['overlap'] = min(task_params['overlap'], task_params['segment'] - 1)
-    slogger.glob.info("Task #{} parameters: {}".format(tid, task_params))
 
     if task_params['mode'] == 'interpolation':
         video = _find_and_extract_video(upload_dir, output_dir, db_task,
